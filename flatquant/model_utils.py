@@ -74,7 +74,7 @@ def get_opt(model_name):
 
 # Unified model loading function
 def get_model(model_name, hf_token=None):
-    if 'llama-3.1' in model_name.lower():
+    if 'llama-3.1' in model_name.lower() or 'llama-3.2' in model_name.lower():
         return get_llama_31(model_name, hf_token)
     elif 'llama' in model_name:
         return get_llama(model_name, hf_token)
