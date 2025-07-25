@@ -12,3 +12,7 @@ CMakeFiles/*
 CMakeCache.txt
 *.egg
 Makefile
+# Ignore large model files
+modelzoo/*/*.safetensors
+modelzoo/*/*/*.safetensors
+*.safetensors
