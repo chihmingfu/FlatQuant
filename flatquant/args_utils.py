@@ -13,6 +13,7 @@ supported_models = [
             './modelzoo/llama-3/llama-3-8b',
             './modelzoo/llama-3/llama-3-70b',
             './modelzoo/llama-3/llama-3.2-3b',
+            './modelzoo/llama-3.2-1b',
             './modelzoo/llama-3.1/llama-3.1-8b',
             './modelzoo/llama-3.1/llama-3.1-70b',
             './modelzoo/llama-3.1-instruct/llama-3.1-instruct-8b',
