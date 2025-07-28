@@ -12,11 +12,8 @@ conda activate flatquant
 pip install -r requirements.txt && pip install -e . && pip install triton==3.0.0
 
 # For LLaMA-3.1 or Qwen-2.5, use transformers==4.45.0 instead
-```
 
-### Building CUDA Extensions
-```bash
-# The setup.py automatically builds CUDA extensions and third-party dependencies
+# The setup.py automatically builds CUDA extensions and third-party dependencies (CUTLASS, fast-hadamard-transform)
 python setup.py build_ext --inplace
 ```
 
@@ -53,6 +50,7 @@ python ./main.py \
     --w_bits 4 --a_bits 4 \
     --k_bits 4 --k_asym --k_groupsize 128 \
     --v_bits 4 --v_asym --v_groupsize 128 \
+    --reload_matrix \
     --matrix_path ./outputs/llama-3-8b/w4a4/exp/flat_matrices.pth \
     --lm_eval --lm_eval_batch_size 16
 ```
@@ -156,4 +154,4 @@ Quantized models are saved to `./outputs/{model_name}/{quantization_config}/exp/
 
 - **CUTLASS**: NVIDIA's CUDA template library for optimized GEMM operations
 - **fast-hadamard-transform**: Efficient Hadamard transform implementation
-- Built via CMake during setup.py execution
+- Built automatically via CMake during `setup.py` execution
