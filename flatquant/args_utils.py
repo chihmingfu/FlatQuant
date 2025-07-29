@@ -92,6 +92,8 @@ def parser_gen():
                         help='Resume from a previous checkpoint for evaluation.')
     parser.add_argument('--save_matrix', action="store_true", default=False, 
                         help='Save the matrix-style parameters of FlatQuant.')
+    parser.add_argument('--mixed_precision', action="store_true", default=False,
+                        help='Enable Report 013 mixed precision training (W2/W4 mixed + A8KV8).')
     parser.add_argument('--reload_matrix', action="store_true", default=False, 
                         help='Reload matrices and the inverse matrices for evaluation.')
     parser.add_argument('--matrix_path', type=str, default=None,

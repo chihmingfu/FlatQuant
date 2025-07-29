@@ -1,4 +1,7 @@
 import transformers
+import json
+from pathlib import Path
+from datetime import datetime
 
 import flatquant.utils as utils
 import flatquant.args_utils as args_utils
@@ -9,9 +12,53 @@ import flatquant.train_utils as train_utils
 import flatquant.flat_utils as flat_utils
 import gptq_utils
 
+def apply_mixed_precision_config(args, model, logger):
+    """Apply Report 013 mixed precision configuration"""
+    # Report 013: W2 layers: 0, 2, 3, 4, 5, 6, 7, 8; W4 layers: 1, 9, 10, 11, 12, 13, 14, 15
+    w2_layers = [0, 2, 3, 4, 5, 6, 7, 8]
+    w4_layers = [1, 9, 10, 11, 12, 13, 14, 15]
+    
+    logger.info("Applying Report 013 Mixed Precision Configuration:")
+    logger.info(f"W2 layers: {w2_layers}")
+    logger.info(f"W4 layers: {w4_layers}")
+    
+    # Configure quantizers for each layer
+    for layer_idx, layer in enumerate(model.model.layers):
+        target_bits = 2 if layer_idx in w2_layers else 4
+        
+        # Configure attention weights
+        if hasattr(layer, 'self_attn'):
+            for name in ['q_proj', 'k_proj', 'v_proj', 'o_proj']:
+                if hasattr(layer.self_attn, name):
+                    module = getattr(layer.self_attn, name)
+                    if hasattr(module, 'weight_quantizer'):
+                        module.weight_quantizer.configure(
+                            target_bits, perchannel=True, sym=not(args.w_asym), mse=False
+                        )
+        
+        # Configure MLP weights  
+        if hasattr(layer, 'mlp'):
+            for name in ['gate_proj', 'up_proj', 'down_proj']:
+                if hasattr(layer.mlp, name):
+                    module = getattr(layer.mlp, name)
+                    if hasattr(module, 'weight_quantizer'):
+                        module.weight_quantizer.configure(
+                            target_bits, perchannel=True, sym=not(args.w_asym), mse=False
+                        )
+        
+        logger.info(f"Layer {layer_idx}: W{target_bits}")
+    
+    return {'w2_layers': w2_layers, 'w4_layers': w4_layers}
+
 def main():
     args, logger = args_utils.parser_gen()
     utils.seed_everything(seed=args.seed)
+    
+    # Check for mixed precision mode
+    mixed_precision_mode = getattr(args, 'mixed_precision', False)
+    if mixed_precision_mode:
+        logger.info("=== MIXED PRECISION TRAINING MODE ===")
+        logger.info("Report 013 Configuration: W2/W4 Mixed + A8KV8")
 
     model, apply_flatquant_to_model = model_utils.get_model(args.model, args.hf_token)
     model.eval()
@@ -25,9 +72,15 @@ def main():
     )
     logger.info("Finished loading training data.")
 
+    mixed_precision_config = None
     if args.quantize:
         model = apply_flatquant_to_model(args, model)
         logger.info("Finished applying FlatQuant to model.")
+        
+        # Apply mixed precision configuration if enabled
+        if mixed_precision_mode:
+            mixed_precision_config = apply_mixed_precision_config(args, model, logger)
+        
         if args.resume:
             flat_utils.load_flat_parameters(args, model)
         elif args.reload_matrix:
@@ -38,6 +91,20 @@ def main():
             flat_utils.save_flat_matrices(args, model)
         flat_utils.reparameterize_model(model)
         logger.info("Finished reparameterize model.")
+        
+        # Save mixed precision configuration
+        if mixed_precision_mode and mixed_precision_config:
+            config_data = {
+                'mixed_precision_config': mixed_precision_config,
+                'model': args.model,
+                'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                'args': vars(args)
+            }
+            config_path = Path(args.exp_dir) / "mixed_precision_config.json"
+            config_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(config_path, 'w') as f:
+                json.dump(config_data, f, indent=2)
+            logger.info(f"Mixed precision config saved: {config_path}")
 
     if args.w_bits < 16:
         save_dict = {}
